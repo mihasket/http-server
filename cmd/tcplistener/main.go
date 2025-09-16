@@ -1,56 +1,13 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
-	"io"
+	"http-server-miha/internal/request"
 	"log"
 	"net"
-	"strings"
 )
 
 const port = ":4000"
-
-func getLinesChannel(f io.ReadCloser) <-chan string {
-	out := make(chan string, 1)
-
-	go func() {
-		defer f.Close()
-		defer close(out)
-
-		line := ""
-
-		for {
-			buf := make([]byte, 8)
-			n, err := f.Read(buf)
-			if err != nil && err != io.EOF {
-				log.Fatal(err)
-			}
-
-			if err == io.EOF {
-				break
-			}
-
-			if bytes.Contains(buf, []byte("\n")) {
-				parts := strings.SplitN(string(buf[:n]), "\n", 2)
-				line = line + parts[0]
-
-				out <- line
-
-				line = parts[1]
-				continue
-			}
-
-			line = line + string(buf[:n])
-		}
-
-		if len(line) != 0 {
-			out <- line
-		}
-	}()
-
-	return out
-}
 
 func main() {
 	ln, err := net.Listen("tcp", port)
@@ -68,11 +25,16 @@ func main() {
 		}
 		fmt.Println("Accepted connection from", conn.RemoteAddr())
 
-		lines := getLinesChannel(conn)
-
-		for line := range lines {
-			fmt.Printf("read: %s\n", line)
+		r, err := request.RequestFromReader(conn)
+		if err != nil {
+			log.Fatal("error", "error", err)
 		}
+
+		fmt.Println("Request line:")
+		fmt.Println("- Method: ", r.RequestLine.Method)
+		fmt.Println("- Target: ", r.RequestLine.RequestTarget)
+		fmt.Println("- Version: ", r.RequestLine.HttpVersion)
+
 		fmt.Println("Connection to ", conn.RemoteAddr(), "closed")
 	}
 }
