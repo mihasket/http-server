@@ -29,7 +29,8 @@ var ERR_HTTP_VERSION = errors.New("request line - incorrect HTTP version")
 var ERR_READ_DONE_STATE = errors.New("Trying to read data in done state")
 var ERR_UNKNOWN_STATE = errors.New("Unknown state in parse")
 var CRLF = []byte("\r\n")
-var bufferSize = 1024
+
+const bufferSize = 1024
 
 func hasAllCapital(b []byte) error {
 	for _, r := range b {
