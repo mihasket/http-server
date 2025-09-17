@@ -10,7 +10,7 @@ import (
 func TestRequestLineParse(t *testing.T) {
 	// Test: Valid single header
 	headers := NewHeaders()
-	data := []byte("Host: localhost:4000\r\n\r\n")
+	data := []byte("Host: localhost:4000\r\n")
 	n, done, err := headers.Parse(data)
 	require.NoError(t, err)
 	require.NotNil(t, headers)
@@ -20,7 +20,7 @@ func TestRequestLineParse(t *testing.T) {
 
 	// Test: Invalid spacing header
 	headers = NewHeaders()
-	data = []byte("       Host : localhost:4000       \r\n\r\n")
+	data = []byte("       Host : localhost:4000       \r\n")
 	n, done, err = headers.Parse(data)
 	require.Error(t, err)
 	assert.Equal(t, 0, n)
@@ -33,5 +33,15 @@ func TestRequestLineParse(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 0, n)
 	require.Empty(t, headers)
+	assert.True(t, done)
+
+	// Test: Multiple Requests
+	headers = NewHeaders()
+	data = []byte("Host: localhost:4000\r\nMusic: Jungle\r\n\r\n")
+	n, done, err = headers.Parse(data)
+	require.NoError(t, err)
+	require.NotNil(t, headers)
+	assert.Equal(t, "localhost:4000", headers["Host"])
+	assert.Equal(t, "Jungle", headers["Music"])
 	assert.True(t, done)
 }
