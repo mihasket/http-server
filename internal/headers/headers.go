@@ -35,7 +35,6 @@ func parseHeader(data []byte) (headerName string, headerValue string, err error)
 }
 
 func (h Headers) Parse(data []byte) (n int, done bool, err error) {
-	done = false
 	readIndex := 0
 
 	for {
@@ -46,8 +45,7 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 
 		// CRLF is at the start, meaning end of headers
 		if headerLineEnd == 0 {
-			done = true
-			break
+			return readIndex, true, nil
 		}
 
 		headerName, headerValue, err := parseHeader(data[readIndex : readIndex+headerLineEnd])
