@@ -28,8 +28,8 @@ var ERR_REQUEST_LINE = errors.New("request line parsing error")
 var ERR_HTTP_VERSION = errors.New("request line - incorrect HTTP version")
 var ERR_READ_DONE_STATE = errors.New("Trying to read data in done state")
 var ERR_UNKNOWN_STATE = errors.New("Unknown state in parse")
-var CRLF = []byte("\r\n")
 
+const CRLF = "\r\n"
 const bufferSize = 1024
 
 func hasAllCapital(b []byte) error {
@@ -42,7 +42,7 @@ func hasAllCapital(b []byte) error {
 }
 
 func parseRequestLine(b []byte) (*RequestLine, int, error) {
-	reqLineEnd := bytes.Index(b, CRLF)
+	reqLineEnd := bytes.Index(b, []byte(CRLF))
 	if reqLineEnd == -1 {
 		return nil, 0, nil
 	}
