@@ -10,6 +10,7 @@ import (
 var ERR_WS_BEFORE_COLON = errors.New("White space before colon in field line")
 var ERR_NOT_A_HEADER = errors.New("Not a header line")
 var ERR_INVALID_CHARACTERS = errors.New("Invalid header characters")
+var ERR_DUPLICATE_HEADERS = errors.New("Duplicate headers in request")
 
 var COLON = []byte(":")
 var CRLF = []byte("\r\n")
@@ -31,15 +32,21 @@ func (h *Headers) Get(name string) string {
 	return h.headers[strings.ToLower(name)]
 }
 
-func (h *Headers) Set(name string, value string) {
+func (h *Headers) Set(name string, value string) error {
 	name = strings.ToLower(name)
-	_, ok := h.headers[name]
+	val, ok := h.headers[name]
+
+	if ok && val == value {
+		return ERR_DUPLICATE_HEADERS
+	}
 
 	if ok {
 		h.headers[name] += fmt.Sprintf(", %s", value)
 	} else {
 		h.headers[name] = value
 	}
+
+	return nil
 }
 
 func isValid(s string) error {
@@ -108,7 +115,10 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 		}
 
 		readIndex += headerLineEnd + len(CRLF)
-		h.Set(headerName, headerValue)
+		err = h.Set(headerName, headerValue)
+		if err != nil {
+			return 0, false, err
+		}
 	}
 
 	return readIndex, false, nil
