@@ -72,8 +72,13 @@ func parseHeader(data []byte) (headerName string, headerValue string, err error)
 		return "", "", ERR_WS_BEFORE_COLON
 	}
 
-	headerName = string(bytes.ReplaceAll(data[:headerNameIdx], WS, []byte("")))
-	headerValue = string(bytes.ReplaceAll(data[headerNameIdx+len(COLON):], WS, []byte("")))
+	// TODO: this
+	if bytes.Contains(data[:headerNameIdx], WS) {
+		return "", "", ERR_NOT_A_HEADER
+	}
+
+	headerName = string(data[:headerNameIdx])
+	headerValue = strings.TrimSpace(string(data[headerNameIdx+len(COLON):]))
 
 	err = isValid(headerName)
 	if err != nil {
@@ -106,5 +111,5 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 		h.Set(headerName, headerValue)
 	}
 
-	return readIndex, done, nil
+	return readIndex, false, nil
 }

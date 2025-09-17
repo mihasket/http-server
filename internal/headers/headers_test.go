@@ -59,4 +59,12 @@ func TestRequestLineParse(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "Jungle, Prog-Metal, Nujabes", headers.Get("Music"))
 	assert.True(t, done)
+
+	// Test: No colon header
+	headers = NewHeaders()
+	data = []byte("Host localhost:4000\r\n")
+	n, done, err = headers.Parse(data)
+	require.Error(t, err)
+	assert.Equal(t, 0, n)
+	assert.False(t, done)
 }

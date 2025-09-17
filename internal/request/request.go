@@ -3,13 +3,24 @@ package request
 import (
 	"bytes"
 	"errors"
+	"fmt"
+	"http-server-miha/internal/headers"
 	"io"
 )
+
+var ERR_REQUEST_LINE = errors.New("request line parsing error")
+var ERR_HTTP_VERSION = errors.New("request line - incorrect HTTP version")
+var ERR_READ_DONE_STATE = errors.New("Trying to read data in done state")
+var ERR_UNKNOWN_STATE = errors.New("Unknown state in parse")
+
+const CRLF = "\r\n"
+const bufferSize = 1024
 
 type ParserState int
 
 const (
 	StateInit ParserState = iota
+	StateHeader
 	StateDone
 )
 
@@ -21,16 +32,9 @@ type RequestLine struct {
 
 type Request struct {
 	RequestLine RequestLine
+	Headers     headers.Headers
 	State       ParserState
 }
-
-var ERR_REQUEST_LINE = errors.New("request line parsing error")
-var ERR_HTTP_VERSION = errors.New("request line - incorrect HTTP version")
-var ERR_READ_DONE_STATE = errors.New("Trying to read data in done state")
-var ERR_UNKNOWN_STATE = errors.New("Unknown state in parse")
-
-const CRLF = "\r\n"
-const bufferSize = 1024
 
 func hasAllCapital(b []byte) error {
 	for _, r := range b {
@@ -42,6 +46,7 @@ func hasAllCapital(b []byte) error {
 }
 
 func parseRequestLine(b []byte) (*RequestLine, int, error) {
+	fmt.Println(string(b))
 	reqLineEnd := bytes.Index(b, []byte(CRLF))
 	if reqLineEnd == -1 {
 		return nil, 0, nil
@@ -75,34 +80,50 @@ func parseRequestLine(b []byte) (*RequestLine, int, error) {
 }
 
 func (r *Request) parse(data []byte) (int, error) {
-	if r.State == StateDone {
+	switch r.State {
+	case StateDone:
 		return 0, ERR_READ_DONE_STATE
-	}
+	case StateInit:
+		reqLine, consumedBytes, err := parseRequestLine(data)
+		if err != nil {
+			return 0, err
+		}
 
-	if r.State != StateInit {
+		// Needs more data
+		if consumedBytes == 0 {
+			return 0, nil
+		}
+
+		r.RequestLine = *reqLine
+		r.State = StateHeader
+		return consumedBytes, nil
+	case StateHeader:
+		consumedBytes, done, err := r.Headers.Parse(data)
+		if err != nil {
+			return 0, err
+		}
+
+		// Needs more data
+		if consumedBytes == 0 {
+			return 0, nil
+		}
+
+		if done {
+			r.State = StateDone
+		}
+
+		return consumedBytes, nil
+	default:
 		return 0, ERR_UNKNOWN_STATE
 	}
 
-	reqLine, consumedBytes, err := parseRequestLine(data)
-	if err != nil {
-		return 0, err
-	}
-
-	// Needs more data
-	if consumedBytes == 0 {
-		return 0, nil
-	}
-
-	r.RequestLine = *reqLine
-	r.State = StateDone
-
-	return consumedBytes, nil
 }
 
 func RequestFromReader(reader io.Reader) (*Request, error) {
 	r := &Request{
 		RequestLine: RequestLine{},
 		State:       StateInit,
+		Headers:     *headers.NewHeaders(),
 	}
 
 	// TODO: Change it back to 8 bytes
@@ -125,13 +146,14 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 			break
 		}
 
-		consumedBytes, err := r.parse(buf[:readIndex+n])
+		consumedBytes, err := r.parse(buf[:readIndex])
 		if err != nil {
 			return nil, err
 		}
 
 		copy(buf, buf[consumedBytes:readIndex])
 		readIndex -= consumedBytes
+
 	}
 
 	return r, nil
