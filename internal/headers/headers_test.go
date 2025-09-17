@@ -51,4 +51,12 @@ func TestRequestLineParse(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, 0, n)
 	assert.False(t, done)
+
+	// Test: Multiple Values
+	headers = NewHeaders()
+	data = []byte("Music: Jungle\r\nMusic: Prog-Metal\r\nMusic: Nujabes\r\n\r\n")
+	_, done, err = headers.Parse(data)
+	require.NoError(t, err)
+	assert.Equal(t, "Jungle, Prog-Metal, Nujabes", headers.Get("Music"))
+	assert.True(t, done)
 }

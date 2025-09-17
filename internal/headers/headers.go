@@ -3,6 +3,7 @@ package headers
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"strings"
 )
 
@@ -26,6 +27,21 @@ func NewHeaders() *Headers {
 	}
 }
 
+func (h *Headers) Get(name string) string {
+	return h.headers[strings.ToLower(name)]
+}
+
+func (h *Headers) Set(name string, value string) {
+	name = strings.ToLower(name)
+	_, ok := h.headers[name]
+
+	if ok {
+		h.headers[name] += fmt.Sprintf(", %s", value)
+	} else {
+		h.headers[name] = value
+	}
+}
+
 func isValid(s string) error {
 	if len(s) < 1 {
 		return ERR_INVALID_CHARACTERS
@@ -44,14 +60,6 @@ func isValid(s string) error {
 	}
 
 	return nil
-}
-
-func (h *Headers) Get(name string) string {
-	return h.headers[strings.ToLower(name)]
-}
-
-func (h *Headers) Set(name string, value string) {
-	h.headers[strings.ToLower(name)] = value
 }
 
 func parseHeader(data []byte) (headerName string, headerValue string, err error) {
