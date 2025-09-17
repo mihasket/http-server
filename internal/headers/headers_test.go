@@ -14,7 +14,7 @@ func TestRequestLineParse(t *testing.T) {
 	n, done, err := headers.Parse(data)
 	require.NoError(t, err)
 	require.NotNil(t, headers)
-	assert.Equal(t, "localhost:4000", headers["Host"])
+	assert.Equal(t, "localhost:4000", headers.Get("Host"))
 	assert.Equal(t, 22, n)
 	assert.False(t, done)
 
@@ -32,7 +32,6 @@ func TestRequestLineParse(t *testing.T) {
 	n, done, err = headers.Parse(data)
 	require.NoError(t, err)
 	require.Equal(t, 0, n)
-	require.Empty(t, headers)
 	assert.True(t, done)
 
 	// Test: Multiple Requests
@@ -41,7 +40,15 @@ func TestRequestLineParse(t *testing.T) {
 	n, done, err = headers.Parse(data)
 	require.NoError(t, err)
 	require.NotNil(t, headers)
-	assert.Equal(t, "localhost:4000", headers["Host"])
-	assert.Equal(t, "Jungle", headers["Music"])
+	assert.Equal(t, "localhost:4000", headers.Get("Host"))
+	assert.Equal(t, "Jungle", headers.Get("Music"))
 	assert.True(t, done)
+
+	// Test: Valid Characters
+	headers = NewHeaders()
+	data = []byte("H©st: localhost:4000\r\n")
+	n, done, err = headers.Parse(data)
+	require.Error(t, err)
+	assert.Equal(t, 0, n)
+	assert.False(t, done)
 }

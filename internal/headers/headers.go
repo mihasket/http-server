@@ -3,19 +3,55 @@ package headers
 import (
 	"bytes"
 	"errors"
+	"strings"
 )
-
-type Headers map[string]string
 
 var ERR_WS_BEFORE_COLON = errors.New("White space before colon in field line")
 var ERR_NOT_A_HEADER = errors.New("Not a header line")
+var ERR_INVALID_CHARACTERS = errors.New("Invalid header characters")
 
 var COLON = []byte(":")
 var CRLF = []byte("\r\n")
 var WS = []byte(" ")
 
-func NewHeaders() Headers {
-	return map[string]string{}
+type headers map[string]string
+
+type Headers struct {
+	headers headers
+}
+
+func NewHeaders() *Headers {
+	return &Headers{
+		headers: map[string]string{},
+	}
+}
+
+func isValid(s string) error {
+	if len(s) < 1 {
+		return ERR_INVALID_CHARACTERS
+	}
+
+	for _, r := range s {
+		if !((r >= 'A' && r <= 'Z') ||
+			(r >= 'a' && r <= 'z') ||
+			(r >= '0' && r <= '9') ||
+			r == '!' || r == '#' || r == '$' || r == '%' ||
+			r == '&' || r == '\'' || r == '*' || r == '+' ||
+			r == '-' || r == '.' || r == '^' || r == '_' ||
+			r == '`' || r == '|' || r == '~') {
+			return ERR_INVALID_CHARACTERS
+		}
+	}
+
+	return nil
+}
+
+func (h *Headers) Get(name string) string {
+	return h.headers[strings.ToLower(name)]
+}
+
+func (h *Headers) Set(name string, value string) {
+	h.headers[strings.ToLower(name)] = value
 }
 
 func parseHeader(data []byte) (headerName string, headerValue string, err error) {
@@ -30,6 +66,11 @@ func parseHeader(data []byte) (headerName string, headerValue string, err error)
 
 	headerName = string(bytes.ReplaceAll(data[:headerNameIdx], WS, []byte("")))
 	headerValue = string(bytes.ReplaceAll(data[headerNameIdx+len(COLON):], WS, []byte("")))
+
+	err = isValid(headerName)
+	if err != nil {
+		return "", "", err
+	}
 
 	return headerName, headerValue, nil
 }
@@ -54,7 +95,7 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 		}
 
 		readIndex += headerLineEnd + len(CRLF)
-		h[headerName] = headerValue
+		h.Set(headerName, headerValue)
 	}
 
 	return readIndex, done, nil
