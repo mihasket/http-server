@@ -3,7 +3,6 @@ package request
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"http-server-miha/internal/headers"
 	"io"
 )
@@ -46,7 +45,6 @@ func hasAllCapital(b []byte) error {
 }
 
 func parseRequestLine(b []byte) (*RequestLine, int, error) {
-	fmt.Println(string(b))
 	reqLineEnd := bytes.Index(b, []byte(CRLF))
 	if reqLineEnd == -1 {
 		return nil, 0, nil
@@ -80,43 +78,49 @@ func parseRequestLine(b []byte) (*RequestLine, int, error) {
 }
 
 func (r *Request) parse(data []byte) (int, error) {
-	switch r.State {
-	case StateDone:
-		return 0, ERR_READ_DONE_STATE
-	case StateInit:
-		reqLine, consumedBytes, err := parseRequestLine(data)
-		if err != nil {
-			return 0, err
-		}
+	readIndex := 0
 
-		// Needs more data
-		if consumedBytes == 0 {
-			return 0, nil
-		}
+	for {
+		currentData := data[readIndex:]
 
-		r.RequestLine = *reqLine
-		r.State = StateHeader
-		return consumedBytes, nil
-	case StateHeader:
-		consumedBytes, done, err := r.Headers.Parse(data)
-		if err != nil {
-			return 0, err
-		}
+		switch r.State {
+		case StateDone:
+			return 0, ERR_READ_DONE_STATE
+		case StateInit:
+			reqLine, consumedBytes, err := parseRequestLine(currentData)
+			if err != nil {
+				return 0, err
+			}
 
-		// Needs more data
-		if consumedBytes == 0 {
-			return 0, nil
-		}
+			// Needs more data
+			if consumedBytes == 0 {
+				return readIndex, nil
+			}
 
-		if done {
-			r.State = StateDone
-		}
+			r.RequestLine = *reqLine
+			readIndex += consumedBytes
+			r.State = StateHeader
+		case StateHeader:
+			consumedBytes, done, err := r.Headers.Parse(currentData)
+			if err != nil {
+				return 0, err
+			}
 
-		return consumedBytes, nil
-	default:
-		return 0, ERR_UNKNOWN_STATE
+			// Needs more data
+			if consumedBytes == 0 {
+				return readIndex, nil
+			}
+
+			readIndex += consumedBytes
+
+			if done {
+				r.State = StateDone
+				return readIndex, nil
+			}
+		default:
+			return 0, ERR_UNKNOWN_STATE
+		}
 	}
-
 }
 
 func RequestFromReader(reader io.Reader) (*Request, error) {
@@ -153,7 +157,6 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 
 		copy(buf, buf[consumedBytes:readIndex])
 		readIndex -= consumedBytes
-
 	}
 
 	return r, nil

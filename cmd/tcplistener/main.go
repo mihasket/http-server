@@ -27,13 +27,15 @@ func main() {
 
 		r, err := request.RequestFromReader(conn)
 		if err != nil {
-			log.Fatal("error", "error", err)
+			log.Fatalf("error reading request from reader: %s\n", err.Error())
 		}
 
 		fmt.Println("Request line:")
 		fmt.Println("- Method: ", r.RequestLine.Method)
 		fmt.Println("- Target: ", r.RequestLine.RequestTarget)
 		fmt.Println("- Version: ", r.RequestLine.HttpVersion)
+
+		r.Headers.Output()
 
 		fmt.Println("Connection to ", conn.RemoteAddr(), "closed")
 	}

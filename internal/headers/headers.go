@@ -49,6 +49,12 @@ func (h *Headers) Set(name string, value string) error {
 	return nil
 }
 
+func (h *Headers) Output() {
+	for key, value := range h.headers {
+		fmt.Printf("- %s: %s\n", key, value)
+	}
+}
+
 func isValid(s string) error {
 	if len(s) < 1 {
 		return ERR_INVALID_CHARACTERS
