@@ -7,19 +7,21 @@ import (
 )
 
 type Server struct {
-	Listener net.Listener
-	Port     int
+	listener net.Listener
+	port     int
+	closed   bool
 }
 
 func Serve(port int) (*Server, error) {
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
-		log.Fatalf("error listening for TCP traffic: %s\n", err.Error())
+		return nil, err
 	}
 
 	s := &Server{
-		Listener: ln,
-		Port:     port,
+		listener: ln,
+		port:     port,
+		closed:   false,
 	}
 
 	go s.listen()
@@ -28,25 +30,31 @@ func Serve(port int) (*Server, error) {
 }
 
 func (s *Server) Close() error {
-	return s.Listener.Close()
+	s.closed = true
+	return s.listener.Close()
 }
 
 func (s *Server) listen() {
 	for {
-		conn, err := s.Listener.Accept()
+		conn, err := s.listener.Accept()
+		if s.closed {
+			break
+		}
+
 		if err != nil {
-			log.Fatal("error", "error", err)
+			log.Printf("Error accepting connection: %v", err)
+			continue
 		}
 		fmt.Println("Accepted connection from", conn.RemoteAddr())
 
 		go s.handle(conn)
-
-		fmt.Println("Connection to ", conn.RemoteAddr(), "closed")
 	}
 }
 
 func (s *Server) handle(conn net.Conn) {
+	defer conn.Close()
+	defer fmt.Println("Connection to", conn.RemoteAddr(), "closed")
+
 	output := []byte("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nHello World!")
 	conn.Write(output)
-	conn.Close()
 }
