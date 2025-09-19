@@ -112,6 +112,7 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 
 		// CRLF is at the start, meaning end of headers
 		if headerLineEnd == 0 {
+			readIndex += len(CRLF)
 			return readIndex, true, nil
 		}
 

@@ -37,6 +37,9 @@ func main() {
 
 		r.Headers.Output()
 
+		fmt.Println("Body: ")
+		fmt.Println(string(r.Body))
+
 		fmt.Println("Connection to ", conn.RemoteAddr(), "closed")
 	}
 }

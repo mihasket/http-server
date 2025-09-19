@@ -5,21 +5,26 @@ import (
 	"errors"
 	"http-server-miha/internal/headers"
 	"io"
+	"strconv"
 )
 
 var ERR_REQUEST_LINE = errors.New("request line parsing error")
 var ERR_HTTP_VERSION = errors.New("request line - incorrect HTTP version")
 var ERR_READ_DONE_STATE = errors.New("Trying to read data in done state")
 var ERR_UNKNOWN_STATE = errors.New("Unknown state in parse")
+var ERR_ATOI_PARSING = errors.New("Atoi parsing error")
+var ERR_CONTENT_LENGTH = errors.New("Content length does not match with body size")
 
 const CRLF = "\r\n"
 const bufferSize = 1024
 
+type Body []byte
 type ParserState int
 
 const (
 	StateInit ParserState = iota
 	StateHeader
+	StateBody
 	StateDone
 )
 
@@ -32,6 +37,7 @@ type RequestLine struct {
 type Request struct {
 	RequestLine RequestLine
 	Headers     headers.Headers
+	Body        Body
 	State       ParserState
 }
 
@@ -42,6 +48,20 @@ func hasAllCapital(b []byte) error {
 		}
 	}
 	return nil
+}
+
+func GetInt(h *headers.Headers, name string) (int, error) {
+	value := h.Get(name)
+	if value == "" {
+		return -1, nil
+	}
+
+	number, err := strconv.Atoi(value)
+	if err != nil {
+		return -1, ERR_ATOI_PARSING
+	}
+
+	return number, nil
 }
 
 func parseRequestLine(b []byte) (*RequestLine, int, error) {
@@ -77,6 +97,16 @@ func parseRequestLine(b []byte) (*RequestLine, int, error) {
 	return reqLine, rest, nil
 }
 
+func (b Body) parse(length int, data []byte) (int, error) {
+	if len(data) < length {
+		return 0, nil
+	} else if len(data) > length {
+		return -1, ERR_CONTENT_LENGTH
+	} else {
+		return length, nil
+	}
+}
+
 func (r *Request) parse(data []byte) (int, error) {
 	readIndex := 0
 
@@ -107,16 +137,42 @@ func (r *Request) parse(data []byte) (int, error) {
 			}
 
 			// Needs more data
-			if consumedBytes == 0 {
+			if consumedBytes == 0 && !done {
 				return readIndex, nil
 			}
 
 			readIndex += consumedBytes
 
 			if done {
+				r.State = StateBody
+			}
+		case StateBody:
+			length, err := GetInt(&r.Headers, "Content-Length")
+			if length == -1 && err == nil {
 				r.State = StateDone
+				return readIndex, err
+			}
+
+			if err != nil {
+				r.State = StateDone
+				return readIndex, err
+			}
+
+			consumedBytes, err := r.Body.parse(length, currentData)
+			if err != nil {
+				return 0, err
+			}
+
+			readIndex += consumedBytes
+
+			// Needs more data
+			if consumedBytes == 0 {
 				return readIndex, nil
 			}
+
+			r.Body = append(r.Body, currentData...)
+			r.State = StateDone
+			return length, nil
 		default:
 			return 0, ERR_UNKNOWN_STATE
 		}
@@ -136,6 +192,9 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 	// you could get a request that is larger than 1024
 	buf := make([]byte, bufferSize)
 	readIndex := 0
+
+	// We read the whole data in to the buffer size
+	// But we send reader.numBytesPerRead to those parsing methods
 
 	for r.State != StateDone {
 		n, err := reader.Read(buf[readIndex:])
