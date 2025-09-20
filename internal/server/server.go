@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"http-server-miha/internal/response"
 	"log"
 	"net"
 )
@@ -55,6 +56,7 @@ func (s *Server) handle(conn net.Conn) {
 	defer conn.Close()
 	defer fmt.Println("Connection to", conn.RemoteAddr(), "closed")
 
-	output := []byte("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nHello World!")
-	conn.Write(output)
+	response.WriteStatusLine(conn, response.OK)
+	h := response.GetDefaultHeaders(0)
+	response.WriteHeaders(conn, h)
 }

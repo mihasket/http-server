@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 )
 
@@ -53,6 +54,19 @@ func (h *Headers) Output() {
 	for key, value := range h.headers {
 		fmt.Printf("- %s: %s\n", key, value)
 	}
+}
+
+func (h *Headers) WriteHeaders(w io.Writer) error {
+	for key, value := range h.headers {
+		fieldLine := fmt.Sprintf("%s: %s\r\n", key, value)
+
+		_, err := w.Write([]byte(fieldLine))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func isValid(s string) error {
