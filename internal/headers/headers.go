@@ -66,6 +66,11 @@ func (h *Headers) WriteHeaders(w io.Writer) error {
 		}
 	}
 
+	_, err := w.Write([]byte(CRLF))
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
