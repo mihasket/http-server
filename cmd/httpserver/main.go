@@ -20,20 +20,31 @@ func main() {
 		body := response.Respond200()
 		h := response.GetDefaultHeaders(len(body))
 		status := response.OK
+		target := req.RequestLine.RequestTarget
 
-		if req.RequestLine.RequestTarget == "/badrequest" {
+		if target == "/badrequest" {
 			status = response.BadRequest
 			body = response.Respond400()
 
 			h.Replace("Content-Length", fmt.Sprintf("%d", len(body)))
-		} else if req.RequestLine.RequestTarget == "/servererror" {
+		} else if target == "/servererror" {
 			status = response.InternalServerError
 			body = response.Respond500()
 
 			h.Replace("Content-Length", fmt.Sprintf("%d", len(body)))
-		} else if strings.HasPrefix(req.RequestLine.RequestTarget, "/httpbin/") {
-			target := req.RequestLine.RequestTarget
+		} else if target == "/video" {
+			h.Replace("Content-Type", "video/mp4")
 
+			body, err := os.ReadFile("assets/video.mp4")
+			if err != nil {
+				log.Fatal(err)
+			}
+			h.Replace("Content-Length", fmt.Sprintf("%d", len(body)))
+
+			w.WriteStatusLine(status)
+			w.WriteHeaders(h)
+			w.WriteBody(body)
+		} else if strings.HasPrefix(target, "/httpbin/") {
 			res, err := http.Get("https://httpbin.org/" + target[len("/httpbin/"):])
 			if err != nil {
 				status = response.InternalServerError
