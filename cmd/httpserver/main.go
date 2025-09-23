@@ -31,10 +31,10 @@ func main() {
 			body = response.Respond500()
 
 			h.Replace("Content-Length", fmt.Sprintf("%d", len(body)))
-		} else if strings.HasPrefix(req.RequestLine.RequestTarget, "/httpbin/stream/") {
-			numOfResponses := strings.TrimPrefix(req.RequestLine.RequestTarget, "/httpbin/stream/")
+		} else if strings.HasPrefix(req.RequestLine.RequestTarget, "/httpbin/") {
+			target := req.RequestLine.RequestTarget
 
-			res, err := http.Get(fmt.Sprintf("https://httpbin.org/stream/%s", numOfResponses))
+			res, err := http.Get("https://httpbin.org/" + target[len("/httpbin/"):])
 			if err != nil {
 				status = response.InternalServerError
 				body = response.Respond500()
