@@ -64,6 +64,16 @@ func (w *Writer) WriteBody(p []byte) (int, error) {
 	return n, nil
 }
 
+func (w *Writer) WriteChunkedBody(p []byte) (int, error) {
+
+	return 0, nil
+}
+
+func (w *Writer) WriteChunkedBodyDone() (int, error) {
+
+	return 0, nil
+}
+
 func GetDefaultHeaders(contentLen int) headers.Headers {
 	h := headers.NewHeaders()
 

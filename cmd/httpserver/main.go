@@ -6,8 +6,10 @@ import (
 	"http-server-miha/internal/response"
 	"http-server-miha/internal/server"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 )
 
@@ -29,6 +31,23 @@ func main() {
 			body = response.Respond500()
 
 			h.Replace("Content-Length", fmt.Sprintf("%d", len(body)))
+		} else if strings.HasPrefix(req.RequestLine.RequestTarget, "/httpbin/stream/") {
+			numOfResponses := strings.TrimPrefix(req.RequestLine.RequestTarget, "/httpbin/stream/")
+
+			res, err := http.Get(fmt.Sprintf("https://httpbin.org/stream/%s", numOfResponses))
+			if err != nil {
+				status = response.InternalServerError
+				body = response.Respond500()
+
+				h.Replace("Content-Length", fmt.Sprintf("%d", len(body)))
+				w.WriteStatusLine(status)
+				w.WriteHeaders(h)
+				w.WriteBody(body)
+				return
+			}
+
+			chunkedEncoding(w, h, res, status)
+			return
 		}
 
 		w.WriteStatusLine(status)

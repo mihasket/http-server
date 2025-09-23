@@ -63,6 +63,12 @@ func (h *Headers) Replace(name string, value string) error {
 	return nil
 }
 
+func (h *Headers) Remove(name string) {
+	name = strings.ToLower(name)
+
+	delete(h.headers, name)
+}
+
 func (h *Headers) Output() {
 	for key, value := range h.headers {
 		fmt.Printf("- %s: %s\n", key, value)
