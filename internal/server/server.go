@@ -1,35 +1,14 @@
 package server
 
 import (
-	"bytes"
 	"fmt"
 	"http-server-miha/internal/request"
 	"http-server-miha/internal/response"
-	"io"
 	"log"
 	"net"
 )
 
-type Handler func(w io.Writer, req *request.Request) *HandlerError
-type HandlerError struct {
-	StatusCode response.StatusCode
-	Message    string
-}
-
-func (he HandlerError) Write(w io.Writer) error {
-	err := response.WriteStatusLine(w, he.StatusCode)
-	if err != nil {
-		return err
-	}
-
-	h := response.GetDefaultHeaders(len(he.Message))
-	err = response.WriteHeaders(w, h)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
+type Handler func(w *response.Writer, req *request.Request)
 
 type Server struct {
 	listener net.Listener
@@ -82,30 +61,15 @@ func (s *Server) handle(conn net.Conn) {
 	defer conn.Close()
 	defer fmt.Println("Connection to", conn.RemoteAddr(), "closed")
 
+	resWriter := response.NewWriter(conn)
 	req, err := request.RequestFromReader(conn)
 	if err != nil {
-		hErr := &HandlerError{
-			StatusCode: response.BadRequest,
-			Message:    err.Error(),
-		}
+		resWriter.WriteStatusLine(response.BadRequest)
+		h := response.GetDefaultHeaders(0)
+		resWriter.WriteHeaders(h)
 
-		hErr.Write(conn)
 		return
 	}
 
-	buf := bytes.NewBuffer([]byte{})
-	hErr := s.handler(buf, req)
-	if hErr != nil {
-		hErr.Write(conn)
-
-		conn.Write(buf.Bytes())
-		return
-	}
-
-	b := buf.Bytes()
-
-	response.WriteStatusLine(conn, response.OK)
-	h := response.GetDefaultHeaders(len(b))
-	response.WriteHeaders(conn, h)
-	conn.Write(b)
+	s.handler(resWriter, req)
 }

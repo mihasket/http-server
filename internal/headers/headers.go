@@ -12,6 +12,7 @@ var ERR_WS_BEFORE_COLON = errors.New("White space before colon in field line")
 var ERR_NOT_A_HEADER = errors.New("Not a header line")
 var ERR_INVALID_CHARACTERS = errors.New("Invalid header characters")
 var ERR_DUPLICATE_HEADERS = errors.New("Duplicate headers in request")
+var ERR_HEADER_DOESNT_EXIST = errors.New("Trying to replace header that doesn't exist")
 
 var COLON = []byte(":")
 var CRLF = []byte("\r\n")
@@ -47,6 +48,18 @@ func (h *Headers) Set(name string, value string) error {
 		h.headers[name] = value
 	}
 
+	return nil
+}
+
+func (h *Headers) Replace(name string, value string) error {
+	name = strings.ToLower(name)
+	_, ok := h.headers[name]
+
+	if !ok {
+		return ERR_HEADER_DOESNT_EXIST
+	}
+
+	h.headers[name] = value
 	return nil
 }
 

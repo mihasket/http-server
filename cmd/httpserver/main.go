@@ -1,10 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"http-server-miha/internal/request"
 	"http-server-miha/internal/response"
 	"http-server-miha/internal/server"
-	"io"
 	"log"
 	"os"
 	"os/signal"
@@ -14,28 +14,26 @@ import (
 const port = 4000
 
 func main() {
-	s, err := server.Serve(port, func(w io.Writer, req *request.Request) *server.HandlerError {
+	s, err := server.Serve(port, func(w *response.Writer, req *request.Request) {
+		body := response.Respond200()
+		h := response.GetDefaultHeaders(len(body))
+		status := response.OK
+
 		if req.RequestLine.RequestTarget == "/badrequest" {
-			sErr := &server.HandlerError{
-				StatusCode: response.BadRequest,
-				Message:    "Bad request\n",
-			}
+			status = response.BadRequest
+			body = response.Respond400()
 
-			w.Write([]byte(sErr.Message))
-
-			return sErr
+			h.Replace("Content-Length", fmt.Sprintf("%d", len(body)))
 		} else if req.RequestLine.RequestTarget == "/servererror" {
-			sErr := &server.HandlerError{
-				StatusCode: response.InternalServerError,
-				Message:    "Internal server error\n",
-			}
+			status = response.InternalServerError
+			body = response.Respond500()
 
-			w.Write([]byte(sErr.Message))
-
-			return sErr
+			h.Replace("Content-Length", fmt.Sprintf("%d", len(body)))
 		}
 
-		return nil
+		w.WriteStatusLine(status)
+		w.WriteHeaders(h)
+		w.WriteBody(body)
 	})
 	if err != nil {
 		log.Fatalf("Error starting server: %v", err)
